@@ -47,11 +47,12 @@ fun PetCareApp(viewModel: PetCareViewModel = viewModel()) {
     val healthRecords by viewModel.healthRecords.collectAsState()
     val documents by viewModel.documents.collectAsState()
     val products by viewModel.products.collectAsState()
+    val apiDogImageUrl by viewModel.apiDogImageUrl.collectAsState()
+    val apiLoading by viewModel.apiLoading.collectAsState()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Home.route
 
-    // Menu modal lateral idêntico ao Slide 4 ("Home, Remédios, Produtos, Agenda, Documentos, Cadastrar")
     val drawerItems = listOf(
         "Home" to Screen.Home.route,
         "Remédios" to Screen.Medications.createRoute(null),
@@ -128,6 +129,9 @@ fun PetCareApp(viewModel: PetCareViewModel = viewModel()) {
                 composable(Screen.Home.route) {
                     HomeScreen(
                         pets = pets,
+                        apiImageUrl = apiDogImageUrl,
+                        apiLoading = apiLoading,
+                        onRefreshApi = { viewModel.fetchRandomPetFromApi() },
                         onAddPetClick = { navController.navigate(Screen.PetForm.createRoute(null)) },
                         onEditPetClick = { petId -> navController.navigate(Screen.PetForm.createRoute(petId)) },
                         onPetClick = { petId -> navController.navigate(Screen.PetDetail.createRoute(petId)) },
