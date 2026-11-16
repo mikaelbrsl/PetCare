@@ -5,14 +5,41 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import br.edu.ifpb.petcare.data.database.PetCareDatabase
 import br.edu.ifpb.petcare.data.model.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.GET
+
+data class DogApiResponse(
+    val message: String,
+    val status: String
+)
+
+interface DogApiService {
+    @GET("breeds/image/random")
+    suspend fun getRandomDogImage(): DogApiResponse
+
+    companion object {
+        private const val BASE_URL = "https://dog.ceo/api/"
+
+        fun create(): DogApiService {
+            return Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+                .create(DogApiService::class.java)
+        }
+    }
+}
 
 class PetCareViewModel(application: Application) : AndroidViewModel(application) {
     private val dao = PetCareDatabase.getDatabase(application).petCareDao()
+    private val dogApi = DogApiService.create()
 
     val pets: StateFlow<List<Pet>> = dao.getAllPets()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -29,18 +56,37 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
     val products: StateFlow<List<PetProduct>> = dao.getAllProducts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val _apiDogImageUrl = MutableStateFlow<String?>(null)
+    val apiDogImageUrl: StateFlow<String?> = _apiDogImageUrl
+
+    private val _apiLoading = MutableStateFlow(false)
+    val apiLoading: StateFlow<Boolean> = _apiLoading
+
     init {
-        // Povoa automaticamente o banco na primeira vez que o app é aberto
         seedSampleDataFromSlides()
+        fetchRandomPetFromApi()
     }
 
-    // Popula 3 animais diferentes (Cachorro, Gato e Ave) com remédios, vacinas, agenda, documentos e produtos
+    fun fetchRandomPetFromApi() {
+        viewModelScope.launch {
+            _apiLoading.value = true
+            try {
+                val response = dogApi.getRandomDogImage()
+                if (response.status == "success") {
+                    _apiDogImageUrl.value = response.message
+                }
+            } catch (e: Exception) {
+                _apiDogImageUrl.value = "Erro ao conectar na API: ${e.localizedMessage}"
+            } finally {
+                _apiLoading.value = false
+            }
+        }
+    }
+
     fun seedSampleDataFromSlides() {
         viewModelScope.launch {
-            // Verifica direto no banco se já existem pets cadastrados para não duplicar
             if (dao.getAllPets().first().isNotEmpty()) return@launch
 
-            // ==================== 1. ANIMAIS (3 Espécies Diferentes) ====================
             val thorId = dao.insertPet(
                 Pet(
                     name = "Thor",
@@ -74,8 +120,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
                 )
             ).toInt()
 
-            // ==================== 2. REMÉDIOS E VACINAS (HealthRecord) ====================
-            // Registros do Thor (Cachorro)
             dao.insertHealthRecord(
                 HealthRecord(
                     petId = thorId,
@@ -99,7 +143,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
                 )
             )
 
-            // Registros do Mingau (Gato)
             dao.insertHealthRecord(
                 HealthRecord(
                     petId = mingauId,
@@ -123,7 +166,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
                 )
             )
 
-            // Registros do Piu (Calopsita)
             dao.insertHealthRecord(
                 HealthRecord(
                     petId = piuId,
@@ -136,7 +178,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
                 )
             )
 
-            // ==================== 3. AGENDA (Appointment) ====================
             dao.insertAppointment(
                 Appointment(
                     petId = thorId,
@@ -171,7 +212,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
                 )
             )
 
-            // ==================== 4. DOCUMENTOS (PetDocument) ====================
             dao.insertDocument(
                 PetDocument(
                     petId = thorId,
@@ -203,7 +243,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
                 )
             )
 
-            // ==================== 5. PRODUTOS (PetProduct) ====================
             dao.insertProduct(
                 PetProduct(
                     petId = thorId,
@@ -247,7 +286,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // CRUD Pets
     fun savePet(
         id: Int?,
         name: String,
@@ -281,7 +319,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { dao.deletePet(pet) }
     }
 
-    // CRUD Agenda
     fun addAppointment(
         petId: Int,
         title: String,
@@ -316,7 +353,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { dao.deleteAppointment(appointment) }
     }
 
-    // CRUD Remédios e Vacinas
     fun addHealthRecord(
         petId: Int,
         type: String,
@@ -345,7 +381,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { dao.deleteHealthRecord(record) }
     }
 
-    // CRUD Documentos
     fun addDocument(
         petId: Int,
         title: String,
@@ -372,7 +407,6 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { dao.deleteDocument(document) }
     }
 
-    // CRUD Produtos
     fun addProduct(
         petId: Int?,
         name: String,

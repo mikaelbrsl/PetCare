@@ -10,8 +10,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +34,9 @@ import coil.compose.AsyncImage
 @Composable
 fun HomeScreen(
     pets: List<Pet>,
+    apiImageUrl: String? = null,
+    apiLoading: Boolean = false,
+    onRefreshApi: () -> Unit = {},
     onAddPetClick: () -> Unit,
     onEditPetClick: (Int) -> Unit,
     onPetClick: (Int) -> Unit,
@@ -39,8 +44,18 @@ fun HomeScreen(
     onNavigateMedications: () -> Unit,
     onSeedSampleData: () -> Unit
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredPets = remember(pets, searchQuery) {
+        if (searchQuery.isBlank()) pets
+        else pets.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.species.contains(searchQuery, ignoreCase = true) ||
+                    it.breed.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
     if (pets.isEmpty()) {
-        // Estado 1 do Slide 4: "Tela inicial sem pets cadastrados"
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -83,7 +98,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 TextButton(onClick = onSeedSampleData) {
                     Text(
-                        text = "Carregar pets de demonstração do slide (Mingau, Kabeção, Mel, Juju)",
+                        text = "Carregar pets de demonstração",
                         color = PetCareGreen,
                         textAlign = TextAlign.Center,
                         fontSize = 13.sp
@@ -91,11 +106,15 @@ fun HomeScreen(
                 }
             }
 
-            // Cards de sugestão idênticos ao Slide 4
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
+                ApiRestBannerCard(
+                    imageUrl = apiImageUrl,
+                    isLoading = apiLoading,
+                    onRefresh = onRefreshApi
+                )
                 SuggestionBannerCard(
                     text = "Sugestão: adicione o próximo banho e tosa do seu pet",
                     onClick = onNavigateAgenda
@@ -107,7 +126,6 @@ fun HomeScreen(
             }
         }
     } else {
-        // Estado 2 do Slide 5: "Tela inicial com pets cadastrados" ("Seus pets")
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -118,7 +136,19 @@ fun HomeScreen(
                 text = "Seus pets",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 12.dp)
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Buscar por nome, espécie ou raça...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
             )
 
             LazyColumn(
@@ -128,11 +158,20 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(pets, key = { it.id }) { pet ->
+                items(filteredPets, key = { it.id }) { pet ->
                     PetPillCard(
                         pet = pet,
                         onCardClick = { onPetClick(pet.id) },
                         onEditClick = { onEditPetClick(pet.id) }
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    ApiRestBannerCard(
+                        imageUrl = apiImageUrl,
+                        isLoading = apiLoading,
+                        onRefresh = onRefreshApi
                     )
                 }
             }
@@ -145,6 +184,88 @@ fun HomeScreen(
             )
 
             Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+fun ApiRestBannerCard(
+    imageUrl: String?,
+    isLoading: Boolean,
+    onRefresh: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = PetCareCardBg,
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(PetCareGreen.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = PetCareGreen,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(28.dp)
+                    )
+                } else if (!imageUrl.isNullOrBlank() && imageUrl.startsWith("http")) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = "Pet da API",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Pets,
+                        contentDescription = null,
+                        tint = PetCareGreen
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "API: Exemplo",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = PetCareGreen
+                )
+                Text(
+                    text = if (imageUrl != null && !imageUrl.startsWith("http")) imageUrl
+                    else "Exemplo de como a descrição, foto e título ficarão",
+                    fontSize = 12.sp,
+                    color = Color(0xFF4A5850)
+                )
+            }
+
+            IconButton(
+                onClick = onRefresh,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(PetCareOrange)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "Atualizar API",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }
@@ -169,7 +290,6 @@ fun PetPillCard(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Foto circular do pet à esquerda (Slide 5)
             Box(
                 modifier = Modifier
                     .size(64.dp)
@@ -196,7 +316,6 @@ fun PetPillCard(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Nome e "Espécie, Idade" (ex: Mingau / Gato, 2 anos)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = pet.name,
@@ -215,7 +334,6 @@ fun PetPillCard(
                 )
             }
 
-            // Botão laranja de edição (Slide 5)
             IconButton(
                 onClick = onEditClick,
                 modifier = Modifier
