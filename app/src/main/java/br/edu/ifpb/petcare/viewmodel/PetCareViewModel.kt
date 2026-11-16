@@ -29,76 +29,88 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
     val products: StateFlow<List<PetProduct>> = dao.getAllProducts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Popula os pets do slide (Mingau, Kabeção, Mel, Juju) caso o usuário queira testar rápido
+    init {
+        // Povoa automaticamente o banco na primeira vez que o app é aberto
+        seedSampleDataFromSlides()
+    }
+
+    // Popula 3 animais diferentes (Cachorro, Gato e Ave) com remédios, vacinas, agenda, documentos e produtos
     fun seedSampleDataFromSlides() {
         viewModelScope.launch {
-            if (pets.value.isNotEmpty()) return@launch
+            // Verifica direto no banco se já existem pets cadastrados para não duplicar
+            if (dao.getAllPets().first().isNotEmpty()) return@launch
+
+            // ==================== 1. ANIMAIS (3 Espécies Diferentes) ====================
+            val thorId = dao.insertPet(
+                Pet(
+                    name = "Thor",
+                    species = "Cachorro",
+                    breed = "Golden Retriever",
+                    age = "3 anos",
+                    birthDate = "14/08/2023",
+                    description = "Porte grande, pelagem dourada, muito dócil e alérgico a picada de pulga."
+                )
+            ).toInt()
+
             val mingauId = dao.insertPet(
                 Pet(
                     name = "Mingau",
                     species = "Gato",
                     breed = "Siamês",
                     age = "2 anos",
-                    birthDate = "01/01/2024",
-                    description = "Siamês, pelo curto, grande"
+                    birthDate = "10/01/2024",
+                    description = "Pelagem curta, olhos azuis, castrado e calmo."
                 )
             ).toInt()
-            val kabecaoId = dao.insertPet(
+
+            val piuId = dao.insertPet(
                 Pet(
-                    name = "Kabeção",
-                    species = "Gato",
-                    breed = "SRD",
-                    age = "8 meses",
-                    birthDate = "10/03/2026",
-                    description = "Gato preto muito brincalhão"
+                    name = "Piu",
+                    species = "Ave",
+                    breed = "Calopsita",
+                    age = "1 ano",
+                    birthDate = "05/09/2025",
+                    description = "Mansa, asas aparadas, adora cantar pela manhã."
                 )
             ).toInt()
-            dao.insertPet(
-                Pet(
-                    name = "Mel",
-                    species = "Gato",
-                    breed = "Persa",
-                    age = "2 anos",
-                    birthDate = "15/05/2024",
-                    description = "Calma, adora dormir na janela"
+
+            // ==================== 2. REMÉDIOS E VACINAS (HealthRecord) ====================
+            // Registros do Thor (Cachorro)
+            dao.insertHealthRecord(
+                HealthRecord(
+                    petId = thorId,
+                    type = "Remédio",
+                    name = "Simparic 80mg (Antipulgas e Carrapatos)",
+                    dosageOrBatch = "1 comprimido mastigável",
+                    applicationDate = "10/11/2026",
+                    nextDueDate = "15/12/2026",
+                    notes = "Dar após a refeição da manhã"
                 )
             )
-            dao.insertPet(
-                Pet(
-                    name = "Juju",
-                    species = "Gato",
-                    breed = "Frajola",
-                    age = "8 meses",
-                    birthDate = "20/03/2026",
-                    description = "Muito esperta e carinhosa"
+            dao.insertHealthRecord(
+                HealthRecord(
+                    petId = thorId,
+                    type = "Vacina",
+                    name = "Vacina Polivalente V10 + Antirrábica",
+                    dosageOrBatch = "Dose Anual - Lote V10-442",
+                    applicationDate = "15/08/2026",
+                    nextDueDate = "15/08/2027",
+                    notes = "Aplicada na Clínica VetCare sem reações"
                 )
             )
 
-            // Agenda inicial de exemplo
-            dao.insertAppointment(
-                Appointment(
+            // Registros do Mingau (Gato)
+            dao.insertHealthRecord(
+                HealthRecord(
                     petId = mingauId,
-                    title = "Banho e Tosa Higiênica",
-                    category = "Banho e Tosa",
-                    date = "20/11/2026",
-                    time = "14:30",
-                    locationOrVet = "PetShop Amigo Fiel",
-                    notes = "Usar shampoo neutro hipoalergênico"
+                    type = "Remédio",
+                    name = "Vermífugo Milbemax Gatos",
+                    dosageOrBatch = "1 comprimido (16mg/4mg)",
+                    applicationDate = "01/11/2026",
+                    nextDueDate = "01/02/2027",
+                    notes = "Administrado misturado ao sachê de salmão"
                 )
             )
-            dao.insertAppointment(
-                Appointment(
-                    petId = kabecaoId,
-                    title = "Check-up Veterinário Semestral",
-                    category = "Consulta Veterinária",
-                    date = "25/11/2026",
-                    time = "09:00",
-                    locationOrVet = "Clínica VetCare - Dra. Camila",
-                    notes = "Avaliar peso e dentição"
-                )
-            )
-
-            // Vacina e Remédio de exemplo
             dao.insertHealthRecord(
                 HealthRecord(
                     petId = mingauId,
@@ -110,19 +122,66 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
                     notes = "Sem reações adversas"
                 )
             )
+
+            // Registros do Piu (Calopsita)
             dao.insertHealthRecord(
                 HealthRecord(
-                    petId = kabecaoId,
+                    petId = piuId,
                     type = "Remédio",
-                    name = "Vermífugo Milbemax",
-                    dosageOrBatch = "1 comprimido (4mg)",
-                    applicationDate = "01/11/2026",
-                    nextDueDate = "01/02/2027",
-                    notes = "Administrado junto com sachê"
+                    name = "Avitrin Complexo Vitamínico",
+                    dosageOrBatch = "5 gotas no bebedouro (50ml)",
+                    applicationDate = "12/11/2026",
+                    nextDueDate = "22/11/2026",
+                    notes = "Suplementação para período de muda de penas (trocar água todo dia)"
                 )
             )
 
-            // Documento de exemplo
+            // ==================== 3. AGENDA (Appointment) ====================
+            dao.insertAppointment(
+                Appointment(
+                    petId = thorId,
+                    title = "Banho, Hidratação e Tosa Higiênica",
+                    category = "Banho e Tosa",
+                    date = "20/11/2026",
+                    time = "14:00",
+                    locationOrVet = "PetShop Amigo Fiel",
+                    notes = "Usar shampoo hipoalergênico e limpar bem os ouvidos"
+                )
+            )
+            dao.insertAppointment(
+                Appointment(
+                    petId = mingauId,
+                    title = "Check-up Renal e Exame de Sangue",
+                    category = "Consulta Veterinária",
+                    date = "25/11/2026",
+                    time = "09:30",
+                    locationOrVet = "Clínica VetCare - Dra. Camila",
+                    notes = "Levar em jejum de 8 horas"
+                )
+            )
+            dao.insertAppointment(
+                Appointment(
+                    petId = piuId,
+                    title = "Corte de Asas e Revisão de Bico/Unhas",
+                    category = "Consulta Veterinária",
+                    date = "02/12/2026",
+                    time = "16:00",
+                    locationOrVet = "Consultório Aves & Exóticos - Dr. Rafael",
+                    notes = "Levar na gaiola de transporte coberta com tecido leve"
+                )
+            )
+
+            // ==================== 4. DOCUMENTOS (PetDocument) ====================
+            dao.insertDocument(
+                PetDocument(
+                    petId = thorId,
+                    title = "Certificado de Microchipagem e RGA",
+                    docType = "Identificação",
+                    issueDate = "20/10/2023",
+                    documentNumberOrCode = "CHIP-981020000458123",
+                    summary = "Registro Geral do Animal e código de microchip subcutâneo."
+                )
+            )
             dao.insertDocument(
                 PetDocument(
                     petId = mingauId,
@@ -133,12 +192,32 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
                     summary = "Registro oficial de vacinas e vermifugação emitido pela clínica."
                 )
             )
+            dao.insertDocument(
+                PetDocument(
+                    petId = piuId,
+                    title = "Certificado de Sexagem por DNA",
+                    docType = "Exame Laboratorial",
+                    issueDate = "15/10/2025",
+                    documentNumberOrCode = "LAB-DNA-77412",
+                    summary = "Laudo genético confirmando sexo masculino da ave."
+                )
+            )
 
-            // Produto de exemplo
+            // ==================== 5. PRODUTOS (PetProduct) ====================
+            dao.insertProduct(
+                PetProduct(
+                    petId = thorId,
+                    name = "Ração Premier Golden Retriever Adultos",
+                    category = "Alimentação",
+                    price = 239.90,
+                    quantity = "Pacote 12 kg",
+                    needsRestock = false
+                )
+            )
             dao.insertProduct(
                 PetProduct(
                     petId = mingauId,
-                    name = "Ração Super Premium Gatos Castrados",
+                    name = "Ração Super Premium Gatos Castrados Salmão",
                     category = "Alimentação",
                     price = 189.90,
                     quantity = "Pacote 10.1 kg",
@@ -147,11 +226,21 @@ class PetCareViewModel(application: Application) : AndroidViewModel(application)
             )
             dao.insertProduct(
                 PetProduct(
-                    petId = null,
-                    name = "Areia Higiênica Biodegradável",
+                    petId = mingauId,
+                    name = "Areia Higiênica Biodegradável Viva Verde",
                     category = "Higiene",
-                    price = 42.50,
-                    quantity = "2 pacotes de 4kg",
+                    price = 54.90,
+                    quantity = "1 pacote de 4 kg",
+                    needsRestock = true
+                )
+            )
+            dao.insertProduct(
+                PetProduct(
+                    petId = piuId,
+                    name = "Ração Extrusada Nutropica Calopsita Natural",
+                    category = "Alimentação",
+                    price = 38.50,
+                    quantity = "Caixa 300g",
                     needsRestock = true
                 )
             )
