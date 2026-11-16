@@ -4,7 +4,7 @@
             "outputFile": "br.edu.ifpb.petcare.app-mergeDebugResources-55:/values-v21/values-v21.xml",
             "map": [
                 {
-                    "source": "/home/mikaelbrsl/.gradle/caches/transforms-4/ec160fda303a6b4fbd2ac9e13586eeb3/transformed/core-1.13.1/res/values-v21/values-v21.xml",
+                    "source": "C:\\Users\\Roger\\.gradle\\caches\\transforms-4\\0cfaf36bf518bf0e1c1df8b7fec03d60\\transformed\\core-1.13.1\\res\\values-v21\\values-v21.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,13",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4",
